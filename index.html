@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seguimiento a Tareas - ACTIVA</title>
+  <title>Seguimiento a Tareas - DIRECCION DE INFRAESTRUCTURA TI</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -32,22 +32,22 @@
 
     const DEPARTMENTS = [
       "Todas las Tareas",
-      "Gerencia",
-      "Subgerencia Comercial",
-      "Dirección Jurídica",
-      "Dirección Administrativa y Financiera",
-      "Comunicaciones",
-      "Indicadores"
+      "Gestion Documental",
+      //"Subgerencia Comercial",
+     //"Dirección Jurídica",
+    // "Dirección Administrativa y Financiera",
+   // Comunicaciones",
+    //  "Indicadores"
     ];
 
     const PROFILE_IMAGES = {
       "Todas las Tareas": "todas.png",
-      "Gerencia": "gerencia.png",
-      "Subgerencia Comercial": "comercial.png",
-      "Dirección Jurídica": "juridica.png",
-      "Dirección Administrativa y Financiera": "administrativa.png",
-      "Comunicaciones": "comunicaciones.png",
-      "Indicadores": "indicadores.png"
+      "Gestion Documental": "gerencia.png",
+     // "Subgerencia Comercial": "comercial.png",
+     // "Dirección Jurídica": "juridica.png",
+     // "Dirección Administrativa y Financiera": "administrativa.png",
+     // "Comunicaciones": "comunicaciones.png",
+     // "Indicadores": "indicadores.png"
     };
 
     // Identificador de versión del frontend para diagnosticar problemas de caché.
@@ -58,11 +58,11 @@
 
     // Lista de roles disponibles para login. Las contraseñas viven solo en el backend.
     const ROLE_LIST = [
-      "Gerencia",
-      "Subgerencia Comercial",
-      "Dirección Jurídica",
-      "Dirección Administrativa y Financiera",
-      "Comunicaciones",
+      "Gestion Documental",
+     // "Subgerencia Comercial",
+     // "Dirección Jurídica",
+     // "Dirección Administrativa y Financiera",
+    //  "Comunicaciones",
       "Administrador"
     ];
 
@@ -98,7 +98,7 @@
             <path
               d="M 10 100 A 90 90 0 0 1 190 100"
               fill="none"
-              stroke="#1a8241"
+              stroke="#002855"
               strokeWidth="20"
               strokeLinecap="butt"
               strokeDasharray={circumference}
@@ -193,7 +193,7 @@
             <div key={index} className="flex-1 h-full flex flex-col items-center group min-w-0">
               <div className="flex-1 w-full flex items-end justify-center">
                 <div
-                  className="w-full max-w-[40px] bg-[#1a8241] rounded-t transition-all duration-1000 ease-out relative hover:bg-green-600"
+                  className="w-full max-w-[40px] bg-[#002855] rounded-t transition-all duration-1000 ease-out relative hover:bg-green-600"
                   style={{ height: `${(item.value / max) * 100}%`, minHeight: item.value > 0 ? '4px' : '0' }}
                   aria-label={`${item.label}: ${item.value}`}
                 >
@@ -343,7 +343,7 @@
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 w-full max-w-md anim-slide-up">
             <div className="flex flex-col items-center mb-6">
               <img src="logo.png" alt="ACTIVA" className="h-14 sm:h-16 mb-4" onError={e => e.target.style.display = "none"} />
-              <h1 className="text-xl sm:text-2xl font-bold text-[#1a8241] text-center">Seguimiento a Tareas</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#002855] text-center">Seguimiento a Tareas</h1>
               <p className="text-xs text-gray-500 mt-1 text-center">Empresa de Parques y Eventos de Antioquia</p>
             </div>
 
@@ -355,10 +355,10 @@
                   required
                   value={role}
                   onChange={e => setRole(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all"
                   autoFocus
                 >
-                  <option value="" disabled>Selecciona tu rol...</option>
+                  <option value="" disabled>Selecciona proyecto...</option>
                   {ROLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
@@ -371,7 +371,7 @@
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all"
                 />
               </div>
 
@@ -385,7 +385,7 @@
               <button
                 type="submit"
                 disabled={loading || !role || !password}
-                className="w-full bg-[#1a8241] hover:bg-green-800 text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-[#002855] hover:bg-[#001a38] text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <><i data-lucide="refresh-cw" className="w-4 h-4 animate-spin"></i> Verificando...</>
@@ -697,7 +697,7 @@
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-bold text-[#1a8241] flex items-center gap-2 mb-6">
+              <h3 className="text-sm font-bold text-[#002855] flex items-center gap-2 mb-6">
                <i data-lucide="target" className="w-5 h-5"></i> Cumplimiento Promedio por Indicador
               </h3>
               <div className="space-y-5">
@@ -705,10 +705,10 @@
                   <div key={idx}>
                     <div className="flex justify-between text-xs mb-1">
                       <span className="font-semibold text-gray-700">{item.label}</span>
-                      <span className="font-bold text-[#1a8241] text-sm">{item.value}%</span>
+                      <span className="font-bold text-[#002855] text-sm">{item.value}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-3">
-                      <div className="bg-[#1a8241] h-3 rounded-full transition-all duration-1000 relative overflow-hidden" style={{width: `${item.value}%`}}>
+                      <div className="bg-[#002855] h-3 rounded-full transition-all duration-1000 relative overflow-hidden" style={{width: `${item.value}%`}}>
                          <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 w-full animate-pulse"></div>
                       </div>
                     </div>
@@ -720,7 +720,7 @@
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-bold text-[#1a8241] flex items-center gap-2 mb-6">
+              <h3 className="text-sm font-bold text-[#002855] flex items-center gap-2 mb-6">
                <i data-lucide="bar-chart" className="w-5 h-5"></i> Tareas por Indicador
               </h3>
               <CustomBarChart data={chartData.map(d => ({label: d.label, value: d.count}))} />
@@ -995,7 +995,7 @@
                         aria-label="Buscar valor en filtro"
                       />
                    </div>
-                   <div className="p-2 border-b border-gray-100 flex justify-between text-xs text-[#1a8241]">
+                   <div className="p-2 border-b border-gray-100 flex justify-between text-xs text-[#002855]">
                       <button onClick={handleSelectAll} className="hover:underline font-medium">Seleccionar todo</button>
                       <button onClick={handleClearAll} className="hover:underline font-medium text-gray-500">Ninguno</button>
                    </div>
@@ -1017,7 +1017,7 @@
                       )}
                    </div>
                    <div className="p-2 border-t border-gray-100 bg-gray-50 flex justify-end rounded-b-lg">
-                      <button onClick={() => setActiveFilter(null)} className="text-xs bg-[#1a8241] hover:bg-green-800 text-white px-4 py-1.5 rounded-md shadow-sm transition-colors font-medium">Aplicar</button>
+                      <button onClick={() => setActiveFilter(null)} className="text-xs bg-[#002855] hover:bg-[#001a38] text-white px-4 py-1.5 rounded-md shadow-sm transition-colors font-medium">Aplicar</button>
                    </div>
                 </div>
              )}
@@ -1040,7 +1040,7 @@
           <header className="bg-[#e0e1dd] py-3 px-4 sm:px-6 flex justify-between items-center border-b border-gray-200 shadow-sm z-20 gap-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <button
-                className="md:hidden p-2 -ml-1 text-[#1a8241] hover:bg-black/5 rounded-lg transition-colors flex-shrink-0"
+                className="md:hidden p-2 -ml-1 text-[#002855] hover:bg-black/5 rounded-lg transition-colors flex-shrink-0"
                 onClick={() => setIsMobileMenuOpen(true)}
                 aria-label="Abrir menú de departamentos"
               >
@@ -1052,20 +1052,20 @@
                 className="h-8 sm:h-10 w-auto flex-shrink-0"
                 onError={(e) => e.target.style.display = "none"}
               />
-              <h1 className="text-base sm:text-xl md:text-2xl font-bold text-[#1a8241] truncate leading-tight">
-                <span className="hidden sm:inline">Seguimiento a Tareas - Empresa de Parques y Eventos de Antioquia ACTIVA</span>
-                <span className="sm:hidden">Seguimiento - ACTIVA</span>
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold text-[#002855] truncate leading-tight">
+                <span className="hidden sm:inline">Seguimiento a Tareas - Dirección de Infraestructura TI</span>
+                <span className="sm:hidden">Seguimiento - TI</span>
               </h1>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <div className="hidden md:flex flex-col items-end leading-tight">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wide">Conectado como</span>
-                <span className="text-sm font-bold text-[#1a8241] truncate max-w-[260px]" title={currentUser.role}>{currentUser.role}</span>
+                <span className="text-sm font-bold text-[#002855] truncate max-w-[260px]" title={currentUser.role}>{currentUser.role}</span>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-600 hover:bg-black/10 hover:text-[#1a8241] rounded-lg transition-colors flex items-center gap-1.5"
+                className="p-2 text-gray-600 hover:bg-black/10 hover:text-[#002855] rounded-lg transition-colors flex items-center gap-1.5"
                 title={`Cerrar sesión (${currentUser.role})`}
                 aria-label="Cerrar sesión"
               >
@@ -1079,7 +1079,7 @@
 
             {isLoadingInitial && (
               <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center" role="status" aria-live="polite">
-                <i data-lucide="refresh-cw" className="w-10 h-10 text-[#1a8241] animate-spin mb-4"></i>
+                <i data-lucide="refresh-cw" className="w-10 h-10 text-[#002855] animate-spin mb-4"></i>
                 <p className="text-gray-600 font-semibold">Cargando base de datos...</p>
               </div>
             )}
@@ -1096,7 +1096,7 @@
                     aria-pressed={selectedDept === dept}
                     className={`px-6 py-3 cursor-pointer transition-colors text-sm font-medium border-l-4 focus:outline-none focus:ring-2 focus:ring-[#1a8241] focus:ring-inset ${
                       selectedDept === dept
-                      ? "border-[#1a8241] text-[#1a8241] bg-green-50"
+                      ? "border-[#002855] text-[#002855] bg-green-50"
                       : "border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
@@ -1115,7 +1115,7 @@
                 ></div>
                 <aside className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col anim-slide-in-left">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-[#e0e1dd]">
-                    <span className="text-sm font-bold text-[#1a8241]">Departamentos</span>
+                    <span className="text-sm font-bold text-[#002855]">Departamentos</span>
                     <button
                       onClick={() => setIsMobileMenuOpen(false)}
                       aria-label="Cerrar menú"
@@ -1131,7 +1131,7 @@
                         onClick={() => { setSelectedDept(dept); setIsMobileMenuOpen(false); }}
                         className={`px-5 py-3 cursor-pointer transition-colors text-sm font-medium border-l-4 ${
                           selectedDept === dept
-                          ? "border-[#1a8241] text-[#1a8241] bg-green-50"
+                          ? "border-[#002855] text-[#002855] bg-green-50"
                           : "border-transparent text-gray-600 hover:bg-gray-50"
                         }`}
                       >
@@ -1188,7 +1188,7 @@
                       <div className="text-center"><p className="text-gray-500 text-xs font-semibold uppercase">Total</p><p className="text-2xl font-bold text-gray-800">{taskStats.total}</p></div>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
-                      <div className="w-12 h-12 rounded-lg bg-green-50 text-[#1a8241] flex items-center justify-center"><i data-lucide="check-circle" className="w-6 h-6"></i></div>
+                      <div className="w-12 h-12 rounded-lg bg-green-50 text-[#002855] flex items-center justify-center"><i data-lucide="check-circle" className="w-6 h-6"></i></div>
                       <div className="text-center"><p className="text-gray-500 text-xs font-semibold uppercase">Terminadas</p><p className="text-2xl font-bold text-gray-800">{taskStats.completed}</p></div>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
@@ -1199,14 +1199,14 @@
 
                   <div className="xl:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-4">
-                      <i data-lucide="pie-chart" className="w-4 h-4 text-[#1a8241]"></i> Distribución por Estado
+                      <i data-lucide="pie-chart" className="w-4 h-4 text-[#002855]"></i> Distribución por Estado
                     </h3>
                     <DoughnutChart data={statusData} />
                   </div>
 
                   <div className="xl:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                      <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-4">
-                      <i data-lucide="bar-chart-2" className="w-4 h-4 text-[#1a8241]"></i> Tareas por Responsable
+                      <i data-lucide="bar-chart-2" className="w-4 h-4 text-[#002855]"></i> Tareas por Responsable
                     </h3>
                     <CustomBarChart data={areaData} />
                   </div>
@@ -1215,7 +1215,7 @@
 
               <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-bold text-[#1a8241]">
+                  <h2 className="text-lg font-bold text-[#002855]">
                     Listado de Tareas {selectedDept !== "Todas las Tareas" && `- ${selectedDept}`}
                   </h2>
                   {hasActiveFilters && (
@@ -1233,7 +1233,7 @@
                       <i data-lucide="refresh-cw" className="w-3 h-3 animate-spin"></i> Guardando...
                     </span>
                   )}
-                  <button onClick={() => openModal(null)} className="flex items-center gap-2 bg-[#1a8241] hover:bg-green-800 text-white px-4 py-2 rounded-lg shadow-sm transition-colors text-sm font-medium">
+                  <button onClick={() => openModal(null)} className="flex items-center gap-2 bg-[#002855] hover:bg-[#001a38] text-white px-4 py-2 rounded-lg shadow-sm transition-colors text-sm font-medium">
                     <i data-lucide="plus" className="w-4 h-4"></i> Añadir Tarea
                   </button>
                 </div>
@@ -1242,7 +1242,7 @@
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden pb-32">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left border-collapse">
-                    <thead className="bg-[#1a8241] text-white">
+                    <thead className="bg-[#002855] text-white">
                       <tr>
                         {renderHeader("responsablePrincipal", "RESP. PRINCIPAL")}
                         {renderHeader("responsableSecundario", "RESP. SECUNDARIO")}
@@ -1272,7 +1272,7 @@
                             >
                               <td className="p-3 text-gray-700">{task.responsablePrincipal}</td>
                               <td className="p-3 text-gray-700">{task.responsableSecundario}</td>
-                              <td className="p-3 font-semibold text-[#1a8241]">{task.indicador || "-"}</td>
+                              <td className="p-3 font-semibold text-[#002855]">{task.indicador || "-"}</td>
                               <td className="p-3 font-medium text-gray-800 max-w-[300px] break-words whitespace-normal">{task.compromiso}</td>
                               <td className="p-3 text-gray-600 whitespace-nowrap text-xs">{formatDateDDMMYYYY(task.fechaInicio)}</td>
                               <td className="p-3 text-gray-600 whitespace-nowrap text-xs">{formatDateDDMMYYYY(task.fechaFin)}</td>
@@ -1292,7 +1292,7 @@
                               <td className="p-3 min-w-[100px]">
                                 <div className="flex items-center gap-2">
                                   <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuenow={avanceNum} aria-valuemin="0" aria-valuemax="100">
-                                    <div className="bg-[#1a8241] h-2 rounded-full" style={{width: `${avanceNum}%`}}></div>
+                                    <div className="bg-[#002855] h-2 rounded-full" style={{width: `${avanceNum}%`}}></div>
                                   </div>
                                   <span className="text-xs font-bold text-gray-700 w-8">{avanceNum}%</span>
                                 </div>
@@ -1340,14 +1340,14 @@
               >
 
                 <h2 id="modal-title" className="text-2xl sm:text-3xl font-serif mb-1 text-gray-900">
-                  {editingTask ? <>Editar <em className="text-[#1a8241] italic">actividad</em></> : <>Nueva <em className="text-[#1a8241] italic">actividad</em></>}
+                  {editingTask ? <>Editar <em className="text-[#002855] italic">actividad</em></> : <>Nueva <em className="text-[#002855] italic">actividad</em></>}
                 </h2>
                 <p className="text-[13px] text-gray-500 mb-6">Completa los detalles. Puedes editarlos en cualquier momento.</p>
 
                 {isRestrictedEdit && (
                   <div className="mb-5 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg flex items-start gap-2">
                     <i data-lucide="info" className="w-4 h-4 mt-0.5 flex-shrink-0"></i>
-                    <span>Tu rol solo puede actualizar <strong>Observaciones</strong> y <strong>% Avance</strong>. Los demás campos los gestiona el administrador.</span>
+                    <span>Tu proyecto solo puede actualizar <strong>Observaciones</strong> y <strong>% Avance</strong>. Los demás campos los gestiona el administrador.</span>
                   </div>
                 )}
 
@@ -1355,19 +1355,19 @@
 
                   <div className="mb-4">
                     <label htmlFor="form-compromiso" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Compromiso / Decisiones *</label>
-                    <input id="form-compromiso" name="compromiso" required disabled={isRestrictedEdit} defaultValue={editingTask?.compromiso || ""} autoFocus={!isRestrictedEdit} placeholder="Ej. Realizar mejoras al formato..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                    <input id="form-compromiso" name="compromiso" required disabled={isRestrictedEdit} defaultValue={editingTask?.compromiso || ""} autoFocus={!isRestrictedEdit} placeholder="Ej. Realizar mejoras al formato..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
                   </div>
 
                   <div className="mb-4">
                     <label htmlFor="form-contexto" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Contexto *</label>
-                    <textarea id="form-contexto" name="contexto" required disabled={isRestrictedEdit} defaultValue={editingTask?.contexto || ""} placeholder="Detalles, contexto, entregables..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all min-h-[80px] resize-y disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                    <textarea id="form-contexto" name="contexto" required disabled={isRestrictedEdit} defaultValue={editingTask?.contexto || ""} placeholder="Detalles, contexto, entregables..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all min-h-[80px] resize-y disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
                       <label htmlFor="form-resp-principal" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Resp. Principal *</label>
                       {isAdmin ? (
-                        <select id="form-resp-principal" name="responsablePrincipal" required defaultValue={editingTask?.responsablePrincipal || DEPARTMENTS[1]} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all">
+                        <select id="form-resp-principal" name="responsablePrincipal" required defaultValue={editingTask?.responsablePrincipal || DEPARTMENTS[1]} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all">
                           {DEPARTMENTS.slice(1, -1).map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       ) : (
@@ -1382,7 +1382,7 @@
                     </div>
                     <div>
                       <label htmlFor="form-resp-secundario" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Resp. Secundario</label>
-                      <select id="form-resp-secundario" name="responsableSecundario" disabled={isRestrictedEdit} defaultValue={editingTask?.responsableSecundario || "Ninguno"} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                      <select id="form-resp-secundario" name="responsableSecundario" disabled={isRestrictedEdit} defaultValue={editingTask?.responsableSecundario || "Ninguno"} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
                         <option value="Ninguno">Ninguno</option>
                         {DEPARTMENTS.slice(1, -1).map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
@@ -1391,7 +1391,7 @@
 
                   <div className="mb-4">
                     <label htmlFor="form-indicador" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Indicador Estratégico *</label>
-                    <select id="form-indicador" name="indicador" required disabled={isRestrictedEdit} defaultValue={editingTask?.indicador || ""} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                    <select id="form-indicador" name="indicador" required disabled={isRestrictedEdit} defaultValue={editingTask?.indicador || ""} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
                         <option value="" disabled>Seleccione un indicador de la lista...</option>
                         {indicadoresList.map((ind, i) => (
                           <option key={i} value={ind}>{ind}</option>
@@ -1402,18 +1402,18 @@
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
                       <label htmlFor="form-fecha-inicio" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Fecha Inicio *</label>
-                      <input id="form-fecha-inicio" type="date" name="fechaInicio" required disabled={isRestrictedEdit} defaultValue={toInputDateValue(editingTask?.fechaInicio || "")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                      <input id="form-fecha-inicio" type="date" name="fechaInicio" required disabled={isRestrictedEdit} defaultValue={toInputDateValue(editingTask?.fechaInicio || "")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
                     </div>
                     <div>
                       <label htmlFor="form-fecha-fin" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Fecha Límite *</label>
-                      <input id="form-fecha-fin" type="date" name="fechaFin" required disabled={isRestrictedEdit} defaultValue={toInputDateValue(editingTask?.fechaFin || "")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                      <input id="form-fecha-fin" type="date" name="fechaFin" required disabled={isRestrictedEdit} defaultValue={toInputDateValue(editingTask?.fechaFin || "")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div>
                       <label htmlFor="form-estado" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Estado *</label>
-                      <select id="form-estado" name="estado" required disabled={isRestrictedEdit} defaultValue={normalizeEstado(editingTask?.estado || "En Progreso")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                      <select id="form-estado" name="estado" required disabled={isRestrictedEdit} defaultValue={normalizeEstado(editingTask?.estado || "En Progreso")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
                         <option value="En Progreso">En Progreso</option>
                         <option value="Terminado">Terminado</option>
                       </select>
@@ -1429,14 +1429,14 @@
 
                   <div className="mb-6">
                     <label htmlFor="form-observaciones" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Observaciones</label>
-                    <input id="form-observaciones" name="observaciones" defaultValue={editingTask?.observaciones || ""} placeholder="Opcional..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all" />
+                    <input id="form-observaciones" name="observaciones" defaultValue={editingTask?.observaciones || ""} placeholder="Opcional..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all" />
                   </div>
 
                   <div className="flex justify-end gap-2 mt-6">
-                    <button type="button" onClick={closeModal} className="px-4 py-2.5 rounded-lg text-[13px] font-medium text-gray-600 border border-gray-200 bg-transparent hover:border-[#1a8241] hover:text-[#1a8241] transition-all flex items-center gap-2">
+                    <button type="button" onClick={closeModal} className="px-4 py-2.5 rounded-lg text-[13px] font-medium text-gray-600 border border-gray-200 bg-transparent hover:border-[#002855] hover:text-[#002855] transition-all flex items-center gap-2">
                       <i data-lucide="x" className="w-4 h-4"></i> Cancelar
                     </button>
-                    <button type="submit" disabled={isSyncing} className="px-4 py-2.5 rounded-lg text-[13px] font-medium bg-[#1a8241] text-white hover:bg-green-700 hover:-translate-y-[1px] transition-all flex items-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
+                    <button type="submit" disabled={isSyncing} className="px-4 py-2.5 rounded-lg text-[13px] font-medium bg-[#002855] text-white hover:bg-green-700 hover:-translate-y-[1px] transition-all flex items-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
                       <i data-lucide={isSyncing ? "refresh-cw" : "check"} className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}></i> {editingTask ? "Guardar" : "Crear"}
                     </button>
                   </div>
