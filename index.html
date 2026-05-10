@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento a Tareas - ACTIVA</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
+    .anim-fade { animation: fadeIn 200ms ease-out; }
+    .anim-slide-up { animation: slideUp 220ms ease-out; }
+    .anim-slide-in-right { animation: slideInRight 200ms ease-out; }
+    .anim-slide-in-left { animation: slideInLeft 220ms ease-out; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useRef, useEffect, useCallback } = React;
+
+    const INITIAL_TASKS = [];
+
+    const DEPARTMENTS = [
+      "Todas las Tareas",
+      "Gerencia",
+      "Subgerencia Comercial",
+      "Dirección Jurídica",
+      "Dirección Administrativa y Financiera",
+      "Comunicaciones",
+      "Indicadores"
+    ];
+
+    const PROFILE_IMAGES = {
+      "Todas las Tareas": "todas.png",
+      "Gerencia": "gerencia.png",
+      "Subgerencia Comercial": "comercial.png",
+      "Dirección Jurídica": "juridica.png",
+      "Dirección Administrativa y Financiera": "administrativa.png",
+      "Comunicaciones": "comunicaciones.png",
+      "Indicadores": "indicadores.png"
+    };
+
+    // Identificador de versión del frontend para diagnosticar problemas de caché.
+    const FRONTEND_VERSION = "2026-04-29-v3";
+    console.log("[ACTIVA] Frontend versión:", FRONTEND_VERSION);
+
+    const GOOGLE_SHEETS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzVfa5IF2L728f-tRSlT270ZEsg1RDJ9BX7htrnGzD_3MlNthdew-UIIu3lXw6taRY/exec";
+
+    // Lista de roles disponibles para login. Las contraseñas viven solo en el backend.
+    const ROLE_LIST = [
+      "Gerencia",
+      "Subgerencia Comercial",
+      "Dirección Jurídica",
+      "Dirección Administrativa y Financiera",
+      "Comunicaciones",
+      "Administrador"
+    ];
+
+    function userCanModifyTask(user, task) {
+      if (!user) return false;
+      if (user.role === "Administrador") return true;
+      return task.responsablePrincipal === user.role;
+    }
+
+    // Generación de IDs robusta (evita colisiones en concurrencia)
+    function generateTaskId() {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return "TAREA-" + crypto.randomUUID();
+      }
+      return "TAREA-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+    }
+
+    // -------------------------------------------------------------------------
+    // Componentes de gráficas (sin cambios funcionales)
+    // -------------------------------------------------------------------------
+
+    const GaugeChart = ({ value, total }) => {
+      const radius = 90;
+      const circumference = Math.PI * radius;
+      const percentage = total === 0 ? 0 : (value / total);
+      const dashoffset = circumference - (percentage * circumference);
+      const pct = total === 0 ? 0 : Math.round(percentage * 100);
+
+      return (
+        <div className="relative flex flex-col items-center justify-center h-48 w-64 group cursor-default">
+          <svg className="w-full h-full" viewBox="0 0 200 120" aria-hidden="true">
+            <path d="M 10 100 A 90 90 0 0 1 190 100" fill="none" stroke="#e5e7eb" strokeWidth="20" strokeLinecap="butt" />
+            <path
+              d="M 10 100 A 90 90 0 0 1 190 100"
+              fill="none"
+              stroke="#1a8241"
+              strokeWidth="20"
+              strokeLinecap="butt"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashoffset}
+              className="transition-all duration-1000 ease-out"
+            />
+          </svg>
+          <div className="absolute bottom-6 flex items-baseline space-x-1">
+            <span className="text-5xl font-semibold text-black" aria-label={`${value} de ${total} tareas completas`}>{value}</span>
+          </div>
+          <div className="absolute bottom-2 left-2 text-sm text-gray-500">0</div>
+          <div className="absolute bottom-2 right-2 text-sm text-gray-500">{total}</div>
+          {/* Tooltip al hover */}
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+            {value} de {total} tareas · {pct}%
+          </div>
+        </div>
+      );
+    };
+
+    const DoughnutChart = ({ data }) => {
+      const [hoverIdx, setHoverIdx] = useState(null);
+      let cumulativePercent = 0;
+      const total = data.reduce((acc, d) => acc + d.value, 0);
+
+      if (total === 0) return <div className="h-48 flex items-center justify-center text-gray-400">Sin datos</div>;
+
+      const hovered = hoverIdx !== null ? data[hoverIdx] : null;
+
+      return (
+        <div className="flex items-center h-48 w-full gap-4">
+          <div className="w-32 h-32 relative">
+            <svg viewBox="0 0 42 42" className="w-full h-full transform -rotate-90" aria-hidden="true">
+              <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#e5e7eb" strokeWidth="6"></circle>
+              {data.map((slice, i) => {
+                const percent = (slice.value / total) * 100;
+                if (percent === 0) return null;
+                const offset = 100 - cumulativePercent;
+                cumulativePercent += percent;
+                const isActive = hoverIdx === i;
+                return (
+                  <circle
+                    key={slice.label}
+                    cx="21" cy="21" r="15.91549430918954"
+                    fill="transparent"
+                    stroke={slice.color}
+                    strokeWidth={isActive ? "7.5" : "6"}
+                    strokeDasharray={`${percent} ${100 - percent}`}
+                    strokeDashoffset={offset}
+                    onMouseEnter={() => setHoverIdx(i)}
+                    onMouseLeave={() => setHoverIdx(null)}
+                    style={{ cursor: "pointer", transition: "stroke-width 150ms ease-out" }}
+                  />
+                );
+              })}
+            </svg>
+            {/* Número grande al hover, en el centro del donut */}
+            {hovered && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-2xl font-bold" style={{ color: hovered.color }}>{hovered.value}</span>
+                <span className="text-[9px] text-gray-500 uppercase tracking-wide">{hovered.label}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 flex-1">
+            {data.map((d, i) => (
+              <div
+                key={d.label}
+                className={`flex items-center justify-between text-xs cursor-pointer rounded p-1 transition-colors ${hoverIdx === i ? "bg-gray-50" : ""}`}
+                onMouseEnter={() => setHoverIdx(i)}
+                onMouseLeave={() => setHoverIdx(null)}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></span>
+                  <span className="text-gray-600 truncate max-w-[100px]" title={d.label}>{d.label}</span>
+                </div>
+                <span className="font-semibold">{d.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const CustomBarChart = ({ data }) => {
+      const max = Math.max(...data.map(d => d.value), 1);
+      if (data.length === 0) return <div className="h-48 flex items-center justify-center text-gray-400">Sin datos</div>;
+
+      return (
+        <div className="h-48 w-full mt-2 flex items-end justify-around gap-2">
+          {data.map((item, index) => (
+            <div key={index} className="flex-1 h-full flex flex-col items-center group min-w-0">
+              <div className="flex-1 w-full flex items-end justify-center">
+                <div
+                  className="w-full max-w-[40px] bg-[#1a8241] rounded-t transition-all duration-1000 ease-out relative hover:bg-green-600"
+                  style={{ height: `${(item.value / max) * 100}%`, minHeight: item.value > 0 ? '4px' : '0' }}
+                  aria-label={`${item.label}: ${item.value}`}
+                >
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
+                    {item.value} {item.value === 1 ? 'tarea' : 'tareas'}
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] text-gray-500 mt-2 text-center w-full px-0.5 leading-tight whitespace-normal break-words" title={item.label}>
+                {item.label === "Dirección Administrativa y Financiera"
+                  ? "Dir. Adm. y Financiera"
+                  : item.label === "Dirección Jurídica"
+                    ? "Dir. Jurídica"
+                    : item.label === "Subgerencia Comercial"
+                      ? "Sub. Comercial"
+                      : item.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    // Convierte cualquier fecha a YYYY-MM-DD para <input type="date">.
+    function toInputDateValue(value) {
+      if (!value) return "";
+      const ddmm = formatDateDDMMYYYY(value);
+      const m = ddmm.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+      return "";
+    }
+
+    // Normaliza estados antiguos al esquema de 2 estados.
+    function normalizeEstado(estado) {
+      if (estado === "Finalizado") return "Terminado";
+      if (estado === "Pendiente" || estado === "Retrasado") return "En Progreso";
+      if (estado === "Terminado" || estado === "En Progreso") return estado;
+      return "En Progreso"; // default seguro
+    }
+
+    // Convierte texto plano a JSX, transformando URLs http/https en enlaces clickeables.
+    function renderTextWithLinks(text) {
+      if (!text || typeof text !== "string") return text || "";
+      const urlRegex = /(https?:\/\/\S+)/g;
+      const parts = text.split(urlRegex);
+      return parts.map((part, i) => {
+        if (part && /^https?:\/\//.test(part)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="text-blue-600 underline hover:text-blue-800 break-all"
+            >
+              {part}
+            </a>
+          );
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      });
+    }
+    // Acepta: Date object, "YYYY-MM-DD", ISO string, "Tue Jan 13 2026 03:00:00 GMT-0500..." (Date.toString()), etc.
+    function formatDateDDMMYYYY(value) {
+      if (value === null || value === undefined || value === "") return "";
+
+      const fmt = (d) => {
+        const day = String(d.getDate()).padStart(2, "0");
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      // 1) Date object directo
+      if (value instanceof Date && !isNaN(value.getTime())) return fmt(value);
+
+      const s = value.toString().trim();
+      if (!s) return "";
+
+      // 2) Match YYYY-MM-DD al inicio (cubre "2026-01-13" y "2026-01-13T..." ISO)
+      let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+      // 3) Ya en DD/MM/YYYY
+      m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return `${m[1].padStart(2, "0")}/${m[2].padStart(2, "0")}/${m[3]}`;
+
+      // 4) Fallback: parseo nativo (cubre "Tue Jan 13 2026 03:00:00 GMT-0500...")
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) return fmt(parsed);
+
+      return s;
+    }
+
+    // -------------------------------------------------------------------------
+    // Toast / Notificación
+    // -------------------------------------------------------------------------
+
+    const Toast = ({ message, type, onClose }) => {
+      useEffect(() => {
+        if (type === "success") {
+          const t = setTimeout(onClose, 3500);
+          return () => clearTimeout(t);
+        }
+      }, [type, onClose]);
+
+      const styles = type === "error"
+        ? "bg-red-50 border-red-200 text-red-800"
+        : type === "success"
+          ? "bg-green-50 border-green-200 text-green-800"
+          : "bg-blue-50 border-blue-200 text-blue-800";
+
+      const iconName = type === "error" ? "alert-circle" : type === "success" ? "check-circle" : "info";
+
+      return (
+        <div className={`fixed bottom-6 right-6 z-[60] max-w-sm border rounded-xl shadow-lg p-4 flex items-start gap-3 anim-slide-in-right ${styles}`} role="alert">
+          <i data-lucide={iconName} className="w-5 h-5 flex-shrink-0 mt-0.5"></i>
+          <div className="flex-1 text-sm">{message}</div>
+          <button onClick={onClose} aria-label="Cerrar notificación" className="text-current opacity-60 hover:opacity-100 transition-opacity">
+            <i data-lucide="x" className="w-4 h-4"></i>
+          </button>
+        </div>
+      );
+    };
+
+    // -------------------------------------------------------------------------
+    // LoginScreen
+    // -------------------------------------------------------------------------
+
+    const LoginScreen = ({ onLogin, error, loading }) => {
+      const [role, setRole] = useState("");
+      const [password, setPassword] = useState("");
+
+      useEffect(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      }, [error, loading]);
+
+      const onSubmit = (e) => {
+        e.preventDefault();
+        if (!role || !password) return;
+        onLogin(role, password);
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-[#f8f9fa] via-white to-[#e0f2e9] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 w-full max-w-md anim-slide-up">
+            <div className="flex flex-col items-center mb-6">
+              <img src="logo.png" alt="ACTIVA" className="h-14 sm:h-16 mb-4" onError={e => e.target.style.display = "none"} />
+              <h1 className="text-xl sm:text-2xl font-bold text-[#1a8241] text-center">Seguimiento a Tareas</h1>
+              <p className="text-xs text-gray-500 mt-1 text-center">Empresa de Parques y Eventos de Antioquia</p>
+            </div>
+
+            <form onSubmit={onSubmit}>
+              <div className="mb-4">
+                <label htmlFor="login-role" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Rol</label>
+                <select
+                  id="login-role"
+                  required
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all"
+                  autoFocus
+                >
+                  <option value="" disabled>Selecciona tu rol...</option>
+                  {ROLE_LIST.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+
+              <div className="mb-5">
+                <label htmlFor="login-password" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Contraseña</label>
+                <input
+                  id="login-password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all"
+                />
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-start gap-2" role="alert">
+                  <i data-lucide="alert-circle" className="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !role || !password}
+                className="w-full bg-[#1a8241] hover:bg-green-800 text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <><i data-lucide="refresh-cw" className="w-4 h-4 animate-spin"></i> Verificando...</>
+                ) : (
+                  <><i data-lucide="log-in" className="w-4 h-4"></i> Ingresar</>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    // -------------------------------------------------------------------------
+    // App
+    // -------------------------------------------------------------------------
+
+    function App() {
+      const [tasks, setTasks] = useState(INITIAL_TASKS);
+      const [indicadoresList, setIndicadoresList] = useState([]);
+      const [selectedDept, setSelectedDept] = useState(() => {
+        // Si hay sesión guardada de un rol no-admin, arrancar filtrado por su depto
+        try {
+          const stored = sessionStorage.getItem("activa_user");
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u && u.role && u.role !== "Administrador") return u.role;
+          }
+        } catch (e) {}
+        return "Todas las Tareas";
+      });
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [editingTask, setEditingTask] = useState(null);
+      const [isSyncing, setIsSyncing] = useState(false);
+      const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+      const [columnFilters, setColumnFilters] = useState({});
+      const [modalAvance, setModalAvance] = useState(0);
+      const [toast, setToast] = useState(null); // {message, type}
+      const [sortConfig, setSortConfig] = useState({ key: "avance", direction: "asc" });
+      const [highlightedTaskId, setHighlightedTaskId] = useState(null);
+      const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+      // --- Sesión / autenticación ---
+      const [currentUser, setCurrentUser] = useState(() => {
+        try {
+          const stored = sessionStorage.getItem("activa_user");
+          if (stored) return JSON.parse(stored);
+        } catch (e) {}
+        return null;
+      });
+      const [loginError, setLoginError] = useState(null);
+      const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+      const isAdmin = currentUser?.role === "Administrador";
+      // Edición restringida: no-admin editando una tarea existente solo puede tocar observaciones y avance
+      const isRestrictedEdit = !isAdmin && !!editingTask;
+
+      const [activeFilter, setActiveFilter] = useState(null);
+      const [filterSearch, setFilterSearch] = useState("");
+      const filterRef = useRef(null);
+      const modalRef = useRef(null);
+
+      const showToast = useCallback((message, type = "info") => {
+        setToast({ message, type, key: Date.now() });
+      }, []);
+
+      const handleLogin = useCallback(async (role, password) => {
+        setLoginError(null);
+        setIsLoggingIn(true);
+        try {
+          if (!GOOGLE_SHEETS_WEBAPP_URL) throw new Error("Backend no configurado");
+          const response = await fetch(GOOGLE_SHEETS_WEBAPP_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "login", user: role, password: password })
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = await response.json();
+          if (result.status === "error") throw new Error(result.message || "Credenciales inválidas");
+
+          const user = { role, password };
+          try { sessionStorage.setItem("activa_user", JSON.stringify(user)); } catch (e) {}
+          setCurrentUser(user);
+          // Para roles no-admin, fijar el filtro a su propio departamento
+          if (role !== "Administrador") setSelectedDept(role);
+          else setSelectedDept("Todas las Tareas");
+        } catch (e) {
+          setLoginError(e.message);
+        } finally {
+          setIsLoggingIn(false);
+        }
+      }, []);
+
+      const handleLogout = useCallback(() => {
+        try { sessionStorage.removeItem("activa_user"); } catch (e) {}
+        setCurrentUser(null);
+        setLoginError(null);
+        setSelectedDept("Todas las Tareas");
+      }, []);
+
+      const openModal = (task = null) => {
+        // Si la tarea trae estado legacy, lo normalizamos para que el dropdown lo seleccione
+        if (task && task.estado) {
+          task = { ...task, estado: normalizeEstado(task.estado) };
+        }
+        setEditingTask(task);
+        setModalAvance(task ? parseInt(task.avance, 10) || 0 : 0);
+        setIsModalOpen(true);
+      };
+
+      const closeModal = useCallback(() => {
+        setIsModalOpen(false);
+        setEditingTask(null);
+      }, []);
+
+      // Re-renderiza íconos solo cuando hay cambios estructurales del DOM,
+      // no en cada render del componente.
+      useEffect(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      }, [tasks, selectedDept, isModalOpen, activeFilter, columnFilters, isSyncing, isLoadingInitial, toast, sortConfig, highlightedTaskId, isMobileMenuOpen, currentUser]);
+
+      // ESC cierra el modal y los dropdowns de filtro
+      useEffect(() => {
+        const onKey = (e) => {
+          if (e.key === "Escape") {
+            if (isModalOpen) closeModal();
+            else if (activeFilter) setActiveFilter(null);
+            else if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+          }
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+      }, [isModalOpen, activeFilter, isMobileMenuOpen, closeModal]);
+
+      // Click fuera del filtro lo cierra
+      useEffect(() => {
+        const handleClickOutside = (event) => {
+          if (filterRef.current && !filterRef.current.contains(event.target)) {
+            setActiveFilter(null);
+          }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+      }, []);
+
+      // Scroll y highlight de tarea recién creada
+      useEffect(() => {
+        if (!highlightedTaskId) return;
+        // Esperamos al siguiente frame para asegurar que el row ya está en el DOM
+        const raf = requestAnimationFrame(() => {
+          const rowEl = document.querySelector(`tr[data-task-id="${highlightedTaskId}"]`);
+          if (rowEl) {
+            // 'nearest' evita scroll innecesario si la fila ya está visible
+            rowEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+        // Mantener highlight unos segundos y luego limpiar
+        const t = setTimeout(() => setHighlightedTaskId(null), 3500);
+        return () => {
+          cancelAnimationFrame(raf);
+          clearTimeout(t);
+        };
+      }, [highlightedTaskId]);
+
+      // Carga inicial con AbortController
+      useEffect(() => {
+        const controller = new AbortController();
+
+        const fetchFromGoogleSheets = async () => {
+          if (!GOOGLE_SHEETS_WEBAPP_URL) {
+            setIsLoadingInitial(false);
+            return;
+          }
+          setIsSyncing(true);
+          try {
+            const response = await fetch(GOOGLE_SHEETS_WEBAPP_URL, { signal: controller.signal });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            console.log("[ACTIVA] Backend versión recibida:", data.version || "(sin versión)");
+            if (data.status === "error") throw new Error(data.message || "Error del servidor");
+            if (Array.isArray(data.tasks)) setTasks(data.tasks);
+            if (Array.isArray(data.indicadores)) setIndicadoresList(data.indicadores);
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              console.error("Error al cargar datos:", error);
+              showToast(`No se pudo cargar la base de datos: ${error.message}`, "error");
+            }
+          } finally {
+            setIsSyncing(false);
+            setIsLoadingInitial(false);
+          }
+        };
+        fetchFromGoogleSheets();
+        return () => controller.abort();
+      }, [showToast]);
+
+      // Filtrado de tareas
+      const filteredTasks = useMemo(() => {
+        let result = tasks;
+        if (selectedDept !== "Todas las Tareas" && selectedDept !== "Indicadores") {
+          result = result.filter(t => t.responsablePrincipal === selectedDept);
+        }
+        Object.keys(columnFilters).forEach(key => {
+          const selectedValues = columnFilters[key];
+          if (Array.isArray(selectedValues)) {
+            result = result.filter(t => {
+              const v = key === "estado" ? normalizeEstado(t[key]) : (t[key]?.toString() || "");
+              return selectedValues.includes(v);
+            });
+          }
+        });
+        // Ordenamiento por columna
+        if (sortConfig.key && sortConfig.direction) {
+          const numericKeys = new Set(["avance"]);
+          const dateKeys = new Set(["fechaInicio", "fechaFin"]);
+          const sorted = [...result].sort((a, b) => {
+            let va = a[sortConfig.key] ?? "";
+            let vb = b[sortConfig.key] ?? "";
+            if (sortConfig.key === "estado") {
+              va = normalizeEstado(va);
+              vb = normalizeEstado(vb);
+            }
+            let cmp;
+            if (numericKeys.has(sortConfig.key)) {
+              cmp = (parseInt(va, 10) || 0) - (parseInt(vb, 10) || 0);
+            } else if (dateKeys.has(sortConfig.key)) {
+              // Las fechas vienen YYYY-MM-DD: ordenamiento lexicográfico = cronológico
+              cmp = va.toString().localeCompare(vb.toString());
+            } else {
+              cmp = va.toString().localeCompare(vb.toString(), "es", { numeric: true });
+            }
+            return sortConfig.direction === "asc" ? cmp : -cmp;
+          });
+          result = sorted;
+        }
+        return result;
+      }, [tasks, selectedDept, columnFilters, sortConfig]);
+
+      // Estadísticas en un solo recorrido. Solo 2 estados nuevos: Terminado / En Progreso.
+      // Tareas con estados legacy se cuentan según su mapeo natural.
+      const taskStats = useMemo(() => {
+        const stats = { completed: 0, inProgress: 0, total: filteredTasks.length };
+        for (const t of filteredTasks) {
+          const avance = parseInt(t.avance, 10) || 0;
+          const isDone = t.estado === "Terminado" || t.estado === "Finalizado" || avance === 100;
+          if (isDone) stats.completed++;
+          else stats.inProgress++;
+        }
+        return stats;
+      }, [filteredTasks]);
+
+      // Mapa de valores únicos por columna (memoizado, una sola pasada)
+      const uniqueValuesByColumn = useMemo(() => {
+        const cols = ["responsablePrincipal", "responsableSecundario", "indicador",
+                      "compromiso", "fechaInicio", "fechaFin", "estado",
+                      "observaciones", "avance", "contexto"];
+        const map = {};
+        cols.forEach(c => { map[c] = new Set(); });
+        for (const t of tasks) {
+          cols.forEach(c => {
+            // El filtro de estado usa estados normalizados (Terminado / En Progreso)
+            const raw = c === "estado" ? normalizeEstado(t[c]) : (t[c] ?? "").toString();
+            map[c].add(raw);
+          });
+        }
+        const sorter = (a, b) => {
+          const na = Number(a), nb = Number(b);
+          if (!isNaN(na) && !isNaN(nb) && a !== "" && b !== "") return na - nb;
+          return a.localeCompare(b, "es");
+        };
+        const result = {};
+        cols.forEach(c => { result[c] = [...map[c]].sort(sorter); });
+        return result;
+      }, [tasks]);
+
+      const hasActiveFilters = Object.keys(columnFilters).length > 0;
+      const completionPercentage = taskStats.total === 0 ? 0 : Math.round((taskStats.completed / taskStats.total) * 100);
+
+      const statusData = useMemo(() => ([
+        { label: "Terminado", value: taskStats.completed, color: "#1a8241" },
+        { label: "En Progreso", value: taskStats.inProgress, color: "#3b82f6" }
+      ]), [taskStats]);
+
+      const areaData = useMemo(() => {
+        const counts = {};
+        DEPARTMENTS.slice(1, -1).forEach(d => counts[d] = 0);
+        filteredTasks.forEach(t => {
+          if (counts[t.responsablePrincipal] !== undefined) counts[t.responsablePrincipal]++;
+        });
+        return Object.keys(counts).map(k => ({ label: k, value: counts[k] }));
+      }, [filteredTasks]);
+
+      const renderIndicatorDashboard = () => {
+        const stats = {};
+        tasks.forEach(t => {
+          const ind = t.indicador && t.indicador.trim() !== "" ? t.indicador : "Sin Asignar";
+          if (!stats[ind]) stats[ind] = { totalAvance: 0, count: 0, completed: 0 };
+          stats[ind].totalAvance += (parseInt(t.avance, 10) || 0);
+          stats[ind].count += 1;
+          if (t.estado === "Finalizado" || parseInt(t.avance, 10) === 100) stats[ind].completed += 1;
+        });
+
+        const chartData = Object.keys(stats).map(k => ({
+          label: k,
+          value: Math.round(stats[k].totalAvance / stats[k].count),
+          count: stats[k].count,
+          completed: stats[k].completed
+        })).sort((a, b) => b.value - a.value);
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-sm font-bold text-[#1a8241] flex items-center gap-2 mb-6">
+               <i data-lucide="target" className="w-5 h-5"></i> Cumplimiento Promedio por Indicador
+              </h3>
+              <div className="space-y-5">
+                {chartData.map((item, idx) => (
+                  <div key={idx}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="font-semibold text-gray-700">{item.label}</span>
+                      <span className="font-bold text-[#1a8241] text-sm">{item.value}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-3">
+                      <div className="bg-[#1a8241] h-3 rounded-full transition-all duration-1000 relative overflow-hidden" style={{width: `${item.value}%`}}>
+                         <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 w-full animate-pulse"></div>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1">{item.completed} de {item.count} tareas completadas al 100%</p>
+                  </div>
+                ))}
+                {chartData.length === 0 && <p className="text-xs text-gray-500">No hay indicadores registrados en las tareas.</p>}
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-sm font-bold text-[#1a8241] flex items-center gap-2 mb-6">
+               <i data-lucide="bar-chart" className="w-5 h-5"></i> Tareas por Indicador
+              </h3>
+              <CustomBarChart data={chartData.map(d => ({label: d.label, value: d.count}))} />
+            </div>
+          </div>
+        );
+      };
+
+      // ---------------------------------------------------------------------
+      // Save / Delete con UI optimista + rollback ante fallo
+      // ---------------------------------------------------------------------
+
+      const handleSaveTask = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+
+        // En edición restringida, los campos deshabilitados no llegan al FormData,
+        // así que tomamos los valores existentes de la tarea para todo excepto
+        // observaciones y avance (los únicos editables por departamentos).
+        const newTask = isRestrictedEdit ? {
+          id: editingTask.id,
+          _isEdit: true,
+          responsablePrincipal: editingTask.responsablePrincipal || "",
+          responsableSecundario: editingTask.responsableSecundario || "",
+          compromiso: editingTask.compromiso || "",
+          fechaInicio: editingTask.fechaInicio || "",
+          fechaFin: editingTask.fechaFin || "",
+          estado: editingTask.estado || "En Progreso",
+          contexto: editingTask.contexto || "",
+          indicador: editingTask.indicador || "",
+          observaciones: formData.get("observaciones") || "",
+          avance: parseInt(formData.get("avance") || "0", 10)
+        } : {
+          id: editingTask ? editingTask.id : generateTaskId(),
+          _isEdit: !!editingTask,
+          responsablePrincipal: formData.get("responsablePrincipal") || "",
+          responsableSecundario: formData.get("responsableSecundario") || "",
+          compromiso: (formData.get("compromiso") || "").trim(),
+          fechaInicio: formData.get("fechaInicio") || "",
+          fechaFin: formData.get("fechaFin") || "",
+          estado: formData.get("estado") || "En Progreso",
+          observaciones: formData.get("observaciones") || "",
+          avance: parseInt(formData.get("avance") || "0", 10),
+          contexto: formData.get("contexto") || "",
+          indicador: formData.get("indicador") || ""
+        };
+
+        // Validación cliente (solo aplica a admin / creación)
+        if (!isRestrictedEdit && !newTask.compromiso) {
+          showToast("El compromiso es obligatorio", "error");
+          return;
+        }
+
+        // Snapshot para posible rollback
+        const previousTasks = tasks;
+        const wasEditing = !!editingTask;
+        const newTasks = wasEditing
+          ? tasks.map(t => t.id === editingTask.id ? newTask : t)
+          : [...tasks, newTask];
+
+        setTasks(newTasks);
+        setIsModalOpen(false);
+        setEditingTask(null);
+        setIsSyncing(true);
+
+        // Marcamos la tarea para scroll + highlight, ya sea creación o edición
+        setHighlightedTaskId(newTask.id);
+
+        if (!GOOGLE_SHEETS_WEBAPP_URL) {
+          setIsSyncing(false);
+          showToast("Configuración faltante: URL del backend", "error");
+          return;
+        }
+
+        try {
+          const requestPayload = {
+            action: "save",
+            task: newTask,
+            user: currentUser?.role,
+            password: currentUser?.password,
+            _t: Date.now()
+          };
+          console.log("[ACTIVA] POST → save", { user: currentUser?.role, taskId: newTask.id, isEdit: newTask._isEdit, avance: newTask.avance });
+          const response = await fetch(GOOGLE_SHEETS_WEBAPP_URL, {
+            method: "POST",
+            cache: "no-store",
+            redirect: "follow",
+            body: JSON.stringify(requestPayload)
+          });
+
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = await response.json();
+          // Log detallado para diagnóstico
+          console.log("[ACTIVA] Respuesta del backend al guardar:", result);
+          if (result.status === "error") {
+            throw new Error(result.message || "Error desconocido del servidor");
+          }
+          if (result.status !== "success") {
+            throw new Error("Respuesta inesperada del servidor: " + JSON.stringify(result));
+          }
+
+          showToast(wasEditing ? "Tarea actualizada" : "Tarea creada", "success");
+        } catch (error) {
+          console.error("Error al guardar:", error);
+          // Rollback
+          setTasks(previousTasks);
+          setHighlightedTaskId(null);
+
+          // Si es un problema de autenticación, forzamos logout
+          const isAuthError = /credenciales|contraseña|usuario inválido/i.test(error.message);
+          if (isAuthError) {
+            handleLogout();
+            showToast("Sesión expirada. Vuelve a iniciar sesión.", "error");
+          } else {
+            // Reabrir el modal con la tarea para que el usuario no pierda el trabajo
+            setEditingTask(newTask);
+            setModalAvance(newTask.avance);
+            setIsModalOpen(true);
+            showToast(`No se pudo guardar: ${error.message}. Tu trabajo no se perdió.`, "error");
+          }
+        } finally {
+          setIsSyncing(false);
+        }
+      };
+
+      const handleDelete = async (id) => {
+        if (!window.confirm("¿Estás seguro de eliminar esta tarea?")) return;
+
+        const previousTasks = tasks;
+        setTasks(tasks.filter(t => t.id !== id));
+        setIsSyncing(true);
+
+        if (!GOOGLE_SHEETS_WEBAPP_URL) {
+          setIsSyncing(false);
+          return;
+        }
+
+        try {
+          console.log("[ACTIVA] POST → delete", { user: currentUser?.role, taskId: id });
+          const response = await fetch(GOOGLE_SHEETS_WEBAPP_URL, {
+            method: "POST",
+            cache: "no-store",
+            redirect: "follow",
+            body: JSON.stringify({
+              action: "delete",
+              id: id,
+              user: currentUser?.role,
+              password: currentUser?.password,
+              _t: Date.now()
+            })
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = await response.json();
+          console.log("[ACTIVA] Respuesta del backend al eliminar:", result);
+          if (result.status === "error") throw new Error(result.message || "Error del servidor");
+
+          showToast("Tarea eliminada", "success");
+        } catch (error) {
+          console.error("Error al eliminar:", error);
+          setTasks(previousTasks); // rollback
+
+          const isAuthError = /credenciales|contraseña|usuario inválido/i.test(error.message);
+          if (isAuthError) {
+            handleLogout();
+            showToast("Sesión expirada. Vuelve a iniciar sesión.", "error");
+          } else {
+            showToast(`No se pudo eliminar: ${error.message}`, "error");
+          }
+        } finally {
+          setIsSyncing(false);
+        }
+      };
+
+      // ---------------------------------------------------------------------
+      // Header con filtro estilo Excel
+      // ---------------------------------------------------------------------
+
+      const handleSort = (columnKey) => {
+        setSortConfig(prev => {
+          if (prev.key !== columnKey) return { key: columnKey, direction: "asc" };
+          if (prev.direction === "asc") return { key: columnKey, direction: "desc" };
+          return { key: null, direction: null }; // tercer click: limpia
+        });
+      };
+
+      const renderHeader = (columnKey, title, extraClasses = "") => {
+        const uniqueValues = uniqueValuesByColumn[columnKey] || [];
+
+        const isFilterActive = columnFilters[columnKey] !== undefined;
+        const currentSelected = columnFilters[columnKey] || uniqueValues;
+        const filteredOptions = uniqueValues.filter(val => val.toLowerCase().includes(filterSearch.toLowerCase()));
+
+        const handleToggleValue = (val) => {
+           let newSelected;
+           if (currentSelected.includes(val)) {
+             newSelected = currentSelected.filter(v => v !== val);
+           } else {
+             newSelected = [...currentSelected, val];
+           }
+
+           if (newSelected.length === uniqueValues.length) {
+              const newFilters = {...columnFilters};
+              delete newFilters[columnKey];
+              setColumnFilters(newFilters);
+           } else {
+              setColumnFilters({...columnFilters, [columnKey]: newSelected});
+           }
+        };
+
+        const handleSelectAll = () => {
+           const newFilters = {...columnFilters};
+           delete newFilters[columnKey];
+           setColumnFilters(newFilters);
+        };
+
+        const handleClearAll = () => {
+           setColumnFilters({...columnFilters, [columnKey]: []});
+        };
+
+        const dropdownId = `filter-dropdown-${columnKey}`;
+        const isSorted = sortConfig.key === columnKey;
+        const sortIcon = isSorted ? (sortConfig.direction === "asc" ? "arrow-up" : "arrow-down") : "arrow-up-down";
+
+        return (
+          <th key={columnKey}
+              className={`p-3 border-r border-green-600/50 relative select-none ${extraClasses}`}
+              ref={activeFilter === columnKey ? filterRef : null}
+              scope="col">
+             <div className="flex justify-between items-center gap-2">
+                <button
+                  type="button"
+                  className="flex items-center gap-1 group focus:outline-none focus:ring-2 focus:ring-yellow-300 rounded uppercase"
+                  onClick={() => handleSort(columnKey)}
+                  aria-label={`Ordenar por ${title}`}
+                  title="Click para ordenar"
+                >
+                  <span>{title}</span>
+                  <i data-lucide={sortIcon} className={`w-3 h-3 transition-opacity ${isSorted ? "opacity-100 text-yellow-300" : "opacity-40 group-hover:opacity-80"}`}></i>
+                </button>
+                <button
+                  type="button"
+                  className="focus:outline-none focus:ring-2 focus:ring-yellow-300 rounded p-0.5 group/f"
+                  onClick={() => {
+                    if (activeFilter === columnKey) setActiveFilter(null);
+                    else { setActiveFilter(columnKey); setFilterSearch(""); }
+                  }}
+                  aria-haspopup="true"
+                  aria-expanded={activeFilter === columnKey}
+                  aria-controls={dropdownId}
+                  aria-label={`Filtrar columna ${title}`}
+                  title="Filtrar"
+                >
+                  <i data-lucide="filter" className={`w-3.5 h-3.5 transition-colors ${isFilterActive ? "text-yellow-300 opacity-100" : "opacity-40 group-hover/f:opacity-80"}`}></i>
+                </button>
+             </div>
+
+             {activeFilter === columnKey && (
+                <div
+                  id={dropdownId}
+                  className="absolute top-full left-0 mt-1 bg-white border border-gray-200 shadow-xl rounded-lg w-56 z-50 text-gray-800 font-normal cursor-default"
+                  onClick={e => e.stopPropagation()}
+                  role="dialog"
+                  aria-label={`Filtrar columna ${title}`}
+                >
+                   <div className="p-2 border-b border-gray-100">
+                      <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className="w-full border border-gray-300 p-1.5 text-xs rounded-md focus:outline-none focus:ring-1 focus:ring-[#1a8241]"
+                        value={filterSearch}
+                        onChange={e => setFilterSearch(e.target.value)}
+                        aria-label="Buscar valor en filtro"
+                      />
+                   </div>
+                   <div className="p-2 border-b border-gray-100 flex justify-between text-xs text-[#1a8241]">
+                      <button onClick={handleSelectAll} className="hover:underline font-medium">Seleccionar todo</button>
+                      <button onClick={handleClearAll} className="hover:underline font-medium text-gray-500">Ninguno</button>
+                   </div>
+                   <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                      {filteredOptions.length === 0 ? (
+                         <div className="text-xs text-gray-400 text-center py-2">Sin resultados</div>
+                      ) : (
+                         filteredOptions.map(val => (
+                           <label key={val} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1.5 rounded-md">
+                              <input
+                                type="checkbox"
+                                checked={currentSelected.includes(val)}
+                                onChange={() => handleToggleValue(val)}
+                                className="accent-[#1a8241] w-3.5 h-3.5 rounded-sm"
+                              />
+                              <span className="truncate">{val || "(Vacío)"}</span>
+                           </label>
+                         ))
+                      )}
+                   </div>
+                   <div className="p-2 border-t border-gray-100 bg-gray-50 flex justify-end rounded-b-lg">
+                      <button onClick={() => setActiveFilter(null)} className="text-xs bg-[#1a8241] hover:bg-green-800 text-white px-4 py-1.5 rounded-md shadow-sm transition-colors font-medium">Aplicar</button>
+                   </div>
+                </div>
+             )}
+          </th>
+        );
+      };
+
+      // ---------------------------------------------------------------------
+      // Render principal
+      // ---------------------------------------------------------------------
+
+      // Si el usuario no ha iniciado sesión, mostramos solo la pantalla de login.
+      if (!currentUser) {
+        return <LoginScreen onLogin={handleLogin} error={loginError} loading={isLoggingIn} />;
+      }
+
+      return (
+        <div className="min-h-screen bg-[#f8f9fa] font-sans text-gray-800 flex flex-col">
+
+          <header className="bg-[#e0e1dd] py-3 px-4 sm:px-6 flex justify-between items-center border-b border-gray-200 shadow-sm z-20 gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <button
+                className="md:hidden p-2 -ml-1 text-[#1a8241] hover:bg-black/5 rounded-lg transition-colors flex-shrink-0"
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Abrir menú de departamentos"
+              >
+                <i data-lucide="menu" className="w-6 h-6"></i>
+              </button>
+              <img
+                src="logo.png"
+                alt="Logo ACTIVA"
+                className="h-8 sm:h-10 w-auto flex-shrink-0"
+                onError={(e) => e.target.style.display = "none"}
+              />
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold text-[#1a8241] truncate leading-tight">
+                <span className="hidden sm:inline">Seguimiento a Tareas - Empresa de Parques y Eventos de Antioquia ACTIVA</span>
+                <span className="sm:hidden">Seguimiento - ACTIVA</span>
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <div className="hidden md:flex flex-col items-end leading-tight">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wide">Conectado como</span>
+                <span className="text-sm font-bold text-[#1a8241] truncate max-w-[260px]" title={currentUser.role}>{currentUser.role}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-600 hover:bg-black/10 hover:text-[#1a8241] rounded-lg transition-colors flex items-center gap-1.5"
+                title={`Cerrar sesión (${currentUser.role})`}
+                aria-label="Cerrar sesión"
+              >
+                <i data-lucide="log-out" className="w-5 h-5"></i>
+                <span className="hidden lg:inline text-sm font-medium">Salir</span>
+              </button>
+            </div>
+          </header>
+
+          <div className="flex flex-1 overflow-hidden relative">
+
+            {isLoadingInitial && (
+              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center" role="status" aria-live="polite">
+                <i data-lucide="refresh-cw" className="w-10 h-10 text-[#1a8241] animate-spin mb-4"></i>
+                <p className="text-gray-600 font-semibold">Cargando base de datos...</p>
+              </div>
+            )}
+
+            <aside className="w-64 bg-white hidden md:flex flex-col border-r border-gray-200 shadow-sm z-10" aria-label="Departamentos">
+              <ul className="space-y-1 py-4 flex-1 overflow-y-auto">
+                {DEPARTMENTS.map(dept => (
+                  <li
+                    key={dept}
+                    onClick={() => setSelectedDept(dept)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedDept(dept); } }}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={selectedDept === dept}
+                    className={`px-6 py-3 cursor-pointer transition-colors text-sm font-medium border-l-4 focus:outline-none focus:ring-2 focus:ring-[#1a8241] focus:ring-inset ${
+                      selectedDept === dept
+                      ? "border-[#1a8241] text-[#1a8241] bg-green-50"
+                      : "border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    {dept}
+                  </li>
+                ))}
+              </ul>
+            </aside>
+
+            {/* Drawer móvil: solo se muestra en pantallas <md */}
+            {isMobileMenuOpen && (
+              <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="Menú de departamentos">
+                <div
+                  className="absolute inset-0 bg-black/50 anim-fade"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                ></div>
+                <aside className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col anim-slide-in-left">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-[#e0e1dd]">
+                    <span className="text-sm font-bold text-[#1a8241]">Departamentos</span>
+                    <button
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      aria-label="Cerrar menú"
+                      className="p-1 text-gray-500 hover:text-gray-800 hover:bg-black/5 rounded"
+                    >
+                      <i data-lucide="x" className="w-5 h-5"></i>
+                    </button>
+                  </div>
+                  <ul className="space-y-1 py-3 flex-1 overflow-y-auto">
+                    {DEPARTMENTS.map(dept => (
+                      <li
+                        key={dept}
+                        onClick={() => { setSelectedDept(dept); setIsMobileMenuOpen(false); }}
+                        className={`px-5 py-3 cursor-pointer transition-colors text-sm font-medium border-l-4 ${
+                          selectedDept === dept
+                          ? "border-[#1a8241] text-[#1a8241] bg-green-50"
+                          : "border-transparent text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {dept}
+                      </li>
+                    ))}
+                  </ul>
+                </aside>
+              </div>
+            )}
+
+            <main className="flex-1 p-3 sm:p-6 overflow-y-auto">
+
+              {selectedDept !== "Indicadores" && (
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-wrap justify-between items-center mb-6 gap-6">
+                  <div className="flex gap-4">
+                    <button className="p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors" aria-label="Filtros">
+                      <i data-lucide="filter" className="w-5 h-5"></i>
+                    </button>
+                    <button className="p-2 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors" aria-label="Abrir externo">
+                      <i data-lucide="external-link" className="w-5 h-5"></i>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-8 lg:gap-16">
+                    <GaugeChart value={taskStats.completed} total={taskStats.total} />
+                    <div className="flex flex-col items-center">
+                      <span className="text-[#84cc16] text-5xl font-bold">{completionPercentage} %</span>
+                      <span className="text-[#0c4a6e] font-semibold mt-1">% de terminación</span>
+                    </div>
+                  </div>
+
+                  <div className="w-40 h-40 rounded-full border-4 border-gray-50 overflow-hidden shadow-md hidden lg:block bg-gray-100">
+                    <img
+                      src={PROFILE_IMAGES[selectedDept] || PROFILE_IMAGES["Todas las Tareas"]}
+                      alt={`Imagen de ${selectedDept}`}
+                      className="w-full h-full object-cover object-top"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YxZjVmOSIvPjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5Gb3RvPC90ZXh0Pjwvc3ZnPg==";
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {selectedDept === "Indicadores" ? (
+                renderIndicatorDashboard()
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-8">
+                  <div className="xl:col-span-4 grid grid-cols-3 gap-4">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
+                      <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><i data-lucide="clipboard-list" className="w-6 h-6"></i></div>
+                      <div className="text-center"><p className="text-gray-500 text-xs font-semibold uppercase">Total</p><p className="text-2xl font-bold text-gray-800">{taskStats.total}</p></div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
+                      <div className="w-12 h-12 rounded-lg bg-green-50 text-[#1a8241] flex items-center justify-center"><i data-lucide="check-circle" className="w-6 h-6"></i></div>
+                      <div className="text-center"><p className="text-gray-500 text-xs font-semibold uppercase">Terminadas</p><p className="text-2xl font-bold text-gray-800">{taskStats.completed}</p></div>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:shadow-md transition-shadow">
+                      <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><i data-lucide="clock" className="w-6 h-6"></i></div>
+                      <div className="text-center"><p className="text-gray-500 text-xs font-semibold uppercase">En Progreso</p><p className="text-2xl font-bold text-gray-800">{taskStats.inProgress}</p></div>
+                    </div>
+                  </div>
+
+                  <div className="xl:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-4">
+                      <i data-lucide="pie-chart" className="w-4 h-4 text-[#1a8241]"></i> Distribución por Estado
+                    </h3>
+                    <DoughnutChart data={statusData} />
+                  </div>
+
+                  <div className="xl:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                     <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-4">
+                      <i data-lucide="bar-chart-2" className="w-4 h-4 text-[#1a8241]"></i> Tareas por Responsable
+                    </h3>
+                    <CustomBarChart data={areaData} />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-lg font-bold text-[#1a8241]">
+                    Listado de Tareas {selectedDept !== "Todas las Tareas" && `- ${selectedDept}`}
+                  </h2>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={() => setColumnFilters({})}
+                      className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-semibold transition-colors"
+                    >
+                      <i data-lucide="x" className="w-3 h-3"></i> Limpiar filtros
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-3 items-center">
+                  {isSyncing && (
+                    <span className="text-xs text-gray-500 flex items-center gap-1 mr-2 bg-gray-100 px-2 py-1 rounded-md" aria-live="polite">
+                      <i data-lucide="refresh-cw" className="w-3 h-3 animate-spin"></i> Guardando...
+                    </span>
+                  )}
+                  <button onClick={() => openModal(null)} className="flex items-center gap-2 bg-[#1a8241] hover:bg-green-800 text-white px-4 py-2 rounded-lg shadow-sm transition-colors text-sm font-medium">
+                    <i data-lucide="plus" className="w-4 h-4"></i> Añadir Tarea
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden pb-32">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead className="bg-[#1a8241] text-white">
+                      <tr>
+                        {renderHeader("responsablePrincipal", "RESP. PRINCIPAL")}
+                        {renderHeader("responsableSecundario", "RESP. SECUNDARIO")}
+                        {renderHeader("indicador", "INDICADOR")}
+                        {renderHeader("compromiso", "COMPROMISO/DECISIONES", "min-w-[250px] max-w-[300px]")}
+                        {renderHeader("fechaInicio", "F. INICIO", "w-[90px] min-w-[90px]")}
+                        {renderHeader("fechaFin", "F. FIN", "w-[90px] min-w-[90px]")}
+                        {renderHeader("estado", "ESTADO")}
+                        {renderHeader("observaciones", "OBSERVACIONES", "min-w-[150px] max-w-[200px]")}
+                        {renderHeader("avance", "% AVANCE", "text-center")}
+                        {renderHeader("contexto", "CONTEXTO", "min-w-[200px] max-w-[250px]")}
+                        <th className="p-3 text-center" scope="col">ACCIONES</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTasks.length === 0 ? (
+                        <tr><td colSpan="11" className="text-center p-8 text-gray-500 bg-gray-50">No hay tareas que coincidan con los filtros.</td></tr>
+                      ) : (
+                        filteredTasks.map((task, index) => {
+                          const avanceNum = Math.min(Math.max(parseInt(task.avance, 10) || 0, 0), 100);
+
+                          return (
+                            <tr
+                              key={task.id}
+                              data-task-id={task.id}
+                              className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-green-50 transition-colors border-b border-gray-100 last:border-0 ${highlightedTaskId === task.id ? "!bg-yellow-100 ring-2 ring-yellow-400 ring-inset" : ""}`}
+                            >
+                              <td className="p-3 text-gray-700">{task.responsablePrincipal}</td>
+                              <td className="p-3 text-gray-700">{task.responsableSecundario}</td>
+                              <td className="p-3 font-semibold text-[#1a8241]">{task.indicador || "-"}</td>
+                              <td className="p-3 font-medium text-gray-800 max-w-[300px] break-words whitespace-normal">{task.compromiso}</td>
+                              <td className="p-3 text-gray-600 whitespace-nowrap text-xs">{formatDateDDMMYYYY(task.fechaInicio)}</td>
+                              <td className="p-3 text-gray-600 whitespace-nowrap text-xs">{formatDateDDMMYYYY(task.fechaFin)}</td>
+                              <td className="p-3 text-center">
+                                 {(() => {
+                                   const est = normalizeEstado(task.estado);
+                                   return (
+                                     <span className={`px-2 py-1 rounded-md text-xs font-bold whitespace-nowrap ${
+                                       est === "Terminado" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                                     }`}>
+                                       {est}
+                                     </span>
+                                   );
+                                 })()}
+                              </td>
+                              <td className="p-3 text-gray-600 text-xs max-w-[200px] break-words whitespace-normal">{renderTextWithLinks(task.observaciones)}</td>
+                              <td className="p-3 min-w-[100px]">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuenow={avanceNum} aria-valuemin="0" aria-valuemax="100">
+                                    <div className="bg-[#1a8241] h-2 rounded-full" style={{width: `${avanceNum}%`}}></div>
+                                  </div>
+                                  <span className="text-xs font-bold text-gray-700 w-8">{avanceNum}%</span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-gray-600 text-xs max-w-[250px] break-words whitespace-normal">{task.contexto}</td>
+                              <td className="p-3 text-center space-x-1 whitespace-nowrap">
+                                {userCanModifyTask(currentUser, task) ? (
+                                  <>
+                                    <button onClick={() => openModal(task)} aria-label={`Editar tarea: ${task.compromiso}`} title="Editar" className="text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
+                                    {isAdmin && (
+                                      <button onClick={() => handleDelete(task.id)} aria-label={`Eliminar tarea: ${task.compromiso}`} title="Eliminar" className="text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 italic px-1.5" title="Solo puede modificar el responsable principal o un administrador">
+                                    <i data-lucide="lock" className="w-3 h-3"></i>
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </main>
+          </div>
+
+          {/* MODAL DE EDICIÓN */}
+          {isModalOpen && (
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 anim-fade"
+              onClick={closeModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-title"
+            >
+              <div
+                ref={modalRef}
+                className="bg-white border border-gray-200 rounded-t-[18px] sm:rounded-[18px] p-5 sm:p-8 w-full max-w-[560px] max-h-[92vh] overflow-y-auto shadow-2xl anim-slide-up"
+                onClick={e => e.stopPropagation()}
+              >
+
+                <h2 id="modal-title" className="text-2xl sm:text-3xl font-serif mb-1 text-gray-900">
+                  {editingTask ? <>Editar <em className="text-[#1a8241] italic">actividad</em></> : <>Nueva <em className="text-[#1a8241] italic">actividad</em></>}
+                </h2>
+                <p className="text-[13px] text-gray-500 mb-6">Completa los detalles. Puedes editarlos en cualquier momento.</p>
+
+                {isRestrictedEdit && (
+                  <div className="mb-5 p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-lg flex items-start gap-2">
+                    <i data-lucide="info" className="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                    <span>Tu rol solo puede actualizar <strong>Observaciones</strong> y <strong>% Avance</strong>. Los demás campos los gestiona el administrador.</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveTask}>
+
+                  <div className="mb-4">
+                    <label htmlFor="form-compromiso" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Compromiso / Decisiones *</label>
+                    <input id="form-compromiso" name="compromiso" required disabled={isRestrictedEdit} defaultValue={editingTask?.compromiso || ""} autoFocus={!isRestrictedEdit} placeholder="Ej. Realizar mejoras al formato..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                  </div>
+
+                  <div className="mb-4">
+                    <label htmlFor="form-contexto" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Contexto *</label>
+                    <textarea id="form-contexto" name="contexto" required disabled={isRestrictedEdit} defaultValue={editingTask?.contexto || ""} placeholder="Detalles, contexto, entregables..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all min-h-[80px] resize-y disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label htmlFor="form-resp-principal" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Resp. Principal *</label>
+                      {isAdmin ? (
+                        <select id="form-resp-principal" name="responsablePrincipal" required defaultValue={editingTask?.responsablePrincipal || DEPARTMENTS[1]} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all">
+                          {DEPARTMENTS.slice(1, -1).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      ) : (
+                        <>
+                          <input type="hidden" name="responsablePrincipal" value={currentUser.role} />
+                          <div id="form-resp-principal" className="w-full px-3.5 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-[14px] text-gray-600 flex items-center gap-2" title="Solo el administrador puede cambiar este campo">
+                            <i data-lucide="lock" className="w-3.5 h-3.5 flex-shrink-0"></i>
+                            <span className="truncate">{currentUser.role}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="form-resp-secundario" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Resp. Secundario</label>
+                      <select id="form-resp-secundario" name="responsableSecundario" disabled={isRestrictedEdit} defaultValue={editingTask?.responsableSecundario || "Ninguno"} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                        <option value="Ninguno">Ninguno</option>
+                        {DEPARTMENTS.slice(1, -1).map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label htmlFor="form-indicador" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Indicador Estratégico *</label>
+                    <select id="form-indicador" name="indicador" required disabled={isRestrictedEdit} defaultValue={editingTask?.indicador || ""} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                        <option value="" disabled>Seleccione un indicador de la lista...</option>
+                        {indicadoresList.map((ind, i) => (
+                          <option key={i} value={ind}>{ind}</option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label htmlFor="form-fecha-inicio" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Fecha Inicio *</label>
+                      <input id="form-fecha-inicio" type="date" name="fechaInicio" required disabled={isRestrictedEdit} defaultValue={toInputDateValue(editingTask?.fechaInicio || "")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                    </div>
+                    <div>
+                      <label htmlFor="form-fecha-fin" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Fecha Límite *</label>
+                      <input id="form-fecha-fin" type="date" name="fechaFin" required disabled={isRestrictedEdit} defaultValue={toInputDateValue(editingTask?.fechaFin || "")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label htmlFor="form-estado" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Estado *</label>
+                      <select id="form-estado" name="estado" required disabled={isRestrictedEdit} defaultValue={normalizeEstado(editingTask?.estado || "En Progreso")} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
+                        <option value="En Progreso">En Progreso</option>
+                        <option value="Terminado">Terminado</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="form-avance" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Avance · {modalAvance}%</label>
+                      <div className="flex items-center gap-3 pt-2">
+                        <input id="form-avance" type="range" name="avance" min="0" max="100" step="5" value={modalAvance} onChange={e => setModalAvance(e.target.value)} className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#1a8241]" />
+                        <span className="font-mono text-[13px] min-w-[35px] text-right text-gray-800">{modalAvance}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <label htmlFor="form-observaciones" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Observaciones</label>
+                    <input id="form-observaciones" name="observaciones" defaultValue={editingTask?.observaciones || ""} placeholder="Opcional..." className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#1a8241] focus:ring-1 focus:ring-[#1a8241] transition-all" />
+                  </div>
+
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button type="button" onClick={closeModal} className="px-4 py-2.5 rounded-lg text-[13px] font-medium text-gray-600 border border-gray-200 bg-transparent hover:border-[#1a8241] hover:text-[#1a8241] transition-all flex items-center gap-2">
+                      <i data-lucide="x" className="w-4 h-4"></i> Cancelar
+                    </button>
+                    <button type="submit" disabled={isSyncing} className="px-4 py-2.5 rounded-lg text-[13px] font-medium bg-[#1a8241] text-white hover:bg-green-700 hover:-translate-y-[1px] transition-all flex items-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
+                      <i data-lucide={isSyncing ? "refresh-cw" : "check"} className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}></i> {editingTask ? "Guardar" : "Crear"}
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          )}
+
+          {toast && (
+            <Toast
+              key={toast.key}
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast(null)}
+            />
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+
