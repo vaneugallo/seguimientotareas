@@ -745,11 +745,11 @@
           responsablePrincipal: editingTask.responsablePrincipal || "",
           responsableSecundario: editingTask.responsableSecundario || "",
           compromiso: editingTask.compromiso || "",
+          contexto: editingTask.contexto || "",
           fechaInicio: editingTask.fechaInicio || "",
           fechaFin: editingTask.fechaFin || "",
           estado: editingTask.estado || "En Progreso",
-          contexto: editingTask.contexto || "",
-          indicador: editingTask.indicador || "",
+         // indicador: editingTask.indicador || "",
           observaciones: formData.get("observaciones") || "",
           avance: parseInt(formData.get("avance") || "0", 10)
         } : {
@@ -758,13 +758,13 @@
           responsablePrincipal: formData.get("responsablePrincipal") || "",
           responsableSecundario: formData.get("responsableSecundario") || "",
           compromiso: (formData.get("compromiso") || "").trim(),
+          contexto: formData.get("contexto") || "",
           fechaInicio: formData.get("fechaInicio") || "",
           fechaFin: formData.get("fechaFin") || "",
           estado: formData.get("estado") || "En Progreso",
           observaciones: formData.get("observaciones") || "",
           avance: parseInt(formData.get("avance") || "0", 10),
-          contexto: formData.get("contexto") || "",
-          indicador: formData.get("indicador") || ""
+         // indicador: formData.get("indicador") || ""
         };
 
         // Validación cliente (solo aplica a admin / creación)
@@ -1247,12 +1247,12 @@
                         {renderHeader("responsableSecundario", "RESP. SECUNDARIO")}
                          {/*{renderHeader("indicador", "INDICADOR")}*/}
                         {renderHeader("compromiso", "COMPROMISO/DECISIONES", "min-w-[250px] max-w-[300px]")}
+                        {renderHeader("contexto", "CONTEXTO", "min-w-[200px] max-w-[250px]")}
                         {renderHeader("fechaInicio", "F. INICIO", "w-[90px] min-w-[90px]")}
                         {renderHeader("fechaFin", "F. FIN", "w-[90px] min-w-[90px]")}
                         {renderHeader("estado", "ESTADO")}
                         {renderHeader("observaciones", "OBSERVACIONES", "min-w-[150px] max-w-[200px]")}
                         {renderHeader("avance", "% AVANCE", "text-center")}
-                        {renderHeader("contexto", "CONTEXTO", "min-w-[200px] max-w-[250px]")}
                         <th className="p-3 text-center" scope="col">ACCIONES</th>
                       </tr>
                     </thead>
