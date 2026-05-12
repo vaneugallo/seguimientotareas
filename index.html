@@ -1367,7 +1367,7 @@
                       <label htmlFor="form-resp-principal" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Resp. Principal *</label>
                       {isAdmin ? (
                         <select id="form-resp-principal" name="responsablePrincipal" required defaultValue={editingTask?.responsablePrincipal || DEPARTMENTS[1]} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all">
-                          {DEPARTMENTS.slice(1, -1).map(d => <option key={d} value={d}>{d}</option>)}
+                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       ) : (
                         <>
@@ -1383,7 +1383,7 @@
                       <label htmlFor="form-resp-secundario" className="block text-[11px] uppercase tracking-[0.1em] text-gray-500 mb-1.5 font-medium">Resp. Secundario</label>
                       <select id="form-resp-secundario" name="responsableSecundario" disabled={isRestrictedEdit} defaultValue={editingTask?.responsableSecundario || "Ninguno"} className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] text-gray-800 focus:outline-none focus:border-[#002855] focus:ring-1 focus:ring-[#1a8241] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed">
                         <option value="Ninguno">Ninguno</option>
-                        {DEPARTMENTS.slice(1, -1).map(d => <option key={d} value={d}>{d}</option>)}
+                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                   </div>
