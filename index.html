@@ -637,9 +637,9 @@
 
       // Mapa de valores únicos por columna (memoizado, una sola pasada)
       const uniqueValuesByColumn = useMemo(() => {
-        const cols = ["responsablePrincipal", "responsableSecundario", "indicador",
-                      "compromiso", "fechaInicio", "fechaFin", "estado",
-                      "observaciones", "avance", "contexto"];
+        const cols = ["responsablePrincipal", "responsableSecundario",
+                      "compromiso", "contexto", "fechaInicio", "fechaFin", "estado",
+                      "observaciones", "avance"];
         const map = {};
         cols.forEach(c => { map[c] = new Set(); });
         for (const t of tasks) {
