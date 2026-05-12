@@ -1271,8 +1271,9 @@
                             >
                               <td className="p-3 text-gray-700">{task.responsablePrincipal}</td>
                               <td className="p-3 text-gray-700">{task.responsableSecundario}</td>
-                              <td className="p-3 font-semibold text-[#002855]">{task.indicador || "-"}</td> 
+                              {/*<td className="p-3 font-semibold text-[#002855]">{task.indicador || "-"}</td> */}
                               <td className="p-3 font-medium text-gray-800 max-w-[300px] break-words whitespace-normal">{task.compromiso}</td>
+                              <td className="p-3 text-gray-600 text-xs max-w-[250px] break-words whitespace-normal">{task.contexto}</td>
                               <td className="p-3 text-gray-600 whitespace-nowrap text-xs">{formatDateDDMMYYYY(task.fechaInicio)}</td>
                               <td className="p-3 text-gray-600 whitespace-nowrap text-xs">{formatDateDDMMYYYY(task.fechaFin)}</td>
                               <td className="p-3 text-center">
@@ -1296,7 +1297,7 @@
                                   <span className="text-xs font-bold text-gray-700 w-8">{avanceNum}%</span>
                                 </div>
                               </td>
-                              <td className="p-3 text-gray-600 text-xs max-w-[250px] break-words whitespace-normal">{task.contexto}</td>
+                              
                               <td className="p-3 text-center space-x-1 whitespace-nowrap">
                                 {userCanModifyTask(currentUser, task) ? (
                                   <>
